@@ -5,7 +5,7 @@
   "inbounds": [
     {
       "listen": "0.0.0.0",
-      "port": 443,
+      "port": {{ xray_port | default(443) }},
       "protocol": "vless",
       "settings": {
         "clients": [
@@ -20,7 +20,7 @@
         "network": "tcp",
         "security": "reality",
         "realitySettings": {
-          "dest": "{{ domain }}.xyz:443",
+          "dest": "{{ domain }}.xyz:{{ xray_port | default(443) }}",
           "serverNames": [
             "{{ domain }}.xyz",
             "www.{{ domain }}.xyz"

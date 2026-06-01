@@ -4,6 +4,5 @@ xray_user: "nobody"
 xray_config_path: "/usr/local/etc/xray"
 xray_dat_path: "/usr/local/share/xray"
 xray_log_path: "/var/log/xray"
-xray_install_geodata: true
-xray_service_enabled: true
 xray_arch: "64"
+xray_mode: server  # server | client

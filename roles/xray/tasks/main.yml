@@ -42,9 +42,14 @@
     state: directory
     mode: '0755'
 
+- name: Validate xray_mode
+  ansible.builtin.assert:
+    that: xray_mode in ['server', 'client']
+    fail_msg: "xray_mode must be 'server' or 'client' mode, got '{{ xray_mode }}'"
+
 - name: Deploy Xray configuration
   ansible.builtin.template:
-    src: config.json.j2
+    src: "config_{{ xray_mode }}.json.j2"
     dest: "{{ xray_config_path }}/config.json"
     mode: '0644'
   notify: Reload systemd and restart xray

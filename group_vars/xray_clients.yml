@@ -1,0 +1,4 @@
+xray_mode: client
+inbound_port: 10808
+outbound_port: 8443 # usually 443, but if you're running a web server you can't use 443 port for xray
+public_key: "1Ea4Cv8NN8qvqCti-6b3GR3yKrCKKddkJDCUeWvRRRI"
