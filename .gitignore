@@ -1,0 +1,31 @@
+# Ansible temporary files
+*.retry
+*.bk
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary directories
+tmp/
+cp/
+
+vault-password.txt
+.vault_pass

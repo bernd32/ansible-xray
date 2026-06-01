@@ -1,0 +1,12 @@
+---
+- name: VPS preparation
+  hosts: vps
+  become: true
+  roles:
+    - vps-prep
+
+- name: Xray installation and configuration
+  hosts: vps
+  become: true
+  roles:
+    - xray

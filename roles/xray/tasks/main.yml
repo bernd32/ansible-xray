@@ -1,0 +1,64 @@
+---
+- name: Install dependencies
+  ansible.builtin.apt:
+    name: [curl, unzip]
+    state: present
+    cache_valid_time: 3600
+
+- name: Check current Xray version
+  ansible.builtin.command: /usr/local/bin/xray version
+  register: xray_version_check
+  changed_when: false
+  failed_when: false
+
+- name: Set facts for version comparison
+  ansible.builtin.set_fact:
+    xray_installed: "{{ xray_version_check.rc == 0 and xray_version in xray_version_check.stdout }}"
+
+- name: Install Xray
+  when: not xray_installed
+  block:
+    - name: Download Xray
+      ansible.builtin.get_url:
+        url: "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-{{ xray_arch }}.zip"
+        dest: "/tmp/xray.zip"
+        mode: '0644'
+
+    - name: Extract Xray
+      ansible.builtin.unarchive:
+        src: /tmp/xray.zip
+        dest: /usr/local/bin/
+        remote_src: true
+        mode: '0755'
+
+    - name: Clean up
+      ansible.builtin.file:
+        path: /tmp/xray.zip
+        state: absent
+
+- name: Create config directory
+  ansible.builtin.file:
+    path: "{{ xray_config_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy Xray configuration
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ xray_config_path }}/config.json"
+    mode: '0644'
+  notify: Reload systemd and restart xray
+
+- name: Install systemd service
+  ansible.builtin.template:
+    src: xray.service.j2
+    dest: /etc/systemd/system/xray.service
+    mode: '0644'
+  notify: Reload systemd and restart xray
+
+- name: Enable and start Xray
+  ansible.builtin.systemd:
+    name: xray
+    enabled: true
+    state: started
+    daemon_reload: true

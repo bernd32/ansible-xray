@@ -1,0 +1,7 @@
+#SPDX-License-Identifier: MIT-0
+---
+# handlers file for roles/vps-prep
+- name: Restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
