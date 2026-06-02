@@ -3,7 +3,8 @@
   hosts: vps_servers
   become: true
   roles:
-    - vps-prep
+    - role: vps-prep
+      tags: vps-prep
 
 - name: Xray installation and configuration
   hosts: 
@@ -11,4 +12,5 @@
     - vps_servers
   become: true
   roles:
-    - xray
+    - role: xray
+      tags: xray
