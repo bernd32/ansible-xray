@@ -21,19 +21,30 @@
     - name: Download Xray
       ansible.builtin.get_url:
         url: "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-{{ xray_arch }}.zip"
-        dest: "/tmp/xray.zip"
+        dest: "/tmp/xray-{{ xray_version }}.zip"  # ← Уникальное имя
         mode: '0644'
+
+    - name: Verify checksum
+      ansible.builtin.shell: |
+        set -o pipefail
+        EXPECTED=$(curl -sSL "https://github.com/XTLS/Xray-core/releases/download/v{{ xray_version }}/Xray-linux-{{ xray_arch }}.zip.dgst" | awk -F '= ' '/256=/ {print $2}')
+        ACTUAL=$(sha256sum /tmp/xray-{{ xray_version }}.zip | awk '{print $1}')
+        [ "$EXPECTED" = "$ACTUAL" ]
+      args:
+        executable: /bin/bash
+      changed_when: false
 
     - name: Extract Xray
       ansible.builtin.unarchive:
-        src: /tmp/xray.zip
+        src: "/tmp/xray-{{ xray_version }}.zip"  # ← То же уникальное имя
         dest: /usr/local/bin/
         remote_src: true
         mode: '0755'
+        include: [xray]
 
     - name: Clean up
       ansible.builtin.file:
-        path: /tmp/xray.zip
+        path: "/tmp/xray-{{ xray_version }}.zip"  # ← Удаляем тот же файл
         state: absent
 
 - name: Create config directory
