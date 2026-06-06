@@ -20,7 +20,7 @@
   tasks:
     - name: Install prerequisite packages
       ansible.builtin.apt:
-        name: [wget, curl, vim, unzip, ufw] # Removed xxd, using openssl instead
+        name: [wget, curl, vim, unzip, ufw]
         state: present
         update_cache: true
 
@@ -41,7 +41,6 @@
       ansible.builtin.command: bash /tmp/xray-install.sh install
       when: xray_bin.rc != 0
 
-    # --- Generate identity material once ---
     - name: Generate x25519 keypair
       ansible.builtin.command: xray x25519
       register: kp
@@ -80,12 +79,10 @@
       ansible.builtin.set_fact:
         short_id: "{{ sid.stdout }}"
 
-    # --- FIX: Promote server_name to host fact so it survives into Play 2 ---
     - name: Promote server_name to host fact
       ansible.builtin.set_fact:
         server_name: "{{ server_name }}"
 
-    # --- Deploy config ---
     - name: Deploy server config
       ansible.builtin.template:
         src: templates/server_config.json.j2
@@ -95,7 +92,6 @@
         mode: "0644"
       notify: Restart xray
 
-    # --- FIX: Ensure service is running even if config didn't change ---
     - name: Ensure xray is started and enabled
       ansible.builtin.systemd:
         name: xray
@@ -185,7 +181,6 @@
         mode: "0644"
       notify: Restart xray
 
-    # --- FIX: Ensure service is running even if config didn't change ---
     - name: Ensure xray is started and enabled
       ansible.builtin.systemd:
         name: xray
