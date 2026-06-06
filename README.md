@@ -53,7 +53,7 @@ ssh root@YOUR_CLIENT_IP
 
 ---
 
-# 2. Clone the repository
+## 2. Clone the repository
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/ansible-xray.git
@@ -62,7 +62,7 @@ cd ansible-xray
 
 ---
 
-# 3. Install required Ansible collections
+## 3. Install required Ansible collections
 
 The playbook uses the `community.general` collection for UFW management.
 
@@ -74,7 +74,7 @@ ansible-galaxy collection install community.general
 
 ---
 
-# 4. Configure inventory
+## 4. Configure inventory
 
 Edit `inventory.ini`.
 
@@ -100,7 +100,7 @@ Notes:
 
 ---
 
-# 5. Adjust server settings
+## 5. Adjust server settings
 
 Open `playbook.yml` and review:
 
@@ -113,7 +113,7 @@ Choose a realistic SNI target for `server_name`.
 
 ---
 
-# 6. Run the playbook
+## 6. Run the playbook
 
 Execute:
 
@@ -132,7 +132,7 @@ The playbook will:
 
 ---
 
-# 7. Verify Xray service
+## 7. Verify Xray service
 
 On the server:
 
@@ -154,7 +154,7 @@ journalctl -u xray -f
 
 ---
 
-# 8. Use the SOCKS proxy
+## 8. Use the SOCKS proxy
 
 The client exposes a SOCKS5 proxy on:
 
@@ -170,7 +170,7 @@ curl --proxy socks5h://127.0.0.1:10808 https://ifconfig.me
 
 ---
 
-# 9. Re-running the playbook
+## 9. Re-running the playbook
 
 You can safely re-run:
 
