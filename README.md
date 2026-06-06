@@ -1,78 +1,185 @@
-# Xray Core Ansible Playbook: Usage Guide
+# Ansible Xray Provisioning
 
-This playbook automates VPS hardening (UFW, SSH) and deploys Xray-core with VLESS/REALITY configurations for both server and client nodes.
+An Ansible playbook for provisioning a basic [Xray](https://github.com/XTLS/Xray-core) VLESS + REALITY setup on a server and a client(s).
 
-## Prerequisites
-* Ansible >= 2.14
-* `community.general` collection (`ansible-galaxy collection install community.general`)
-* Target OS: Debian/Ubuntu (systemd-based, `apt` package manager)
-* Target Architecture: `x86_64`  
+It installs Xray, generates the required identity material, renders JSON configs from Jinja2 templates, opens the firewall on the server, and enables the systemd service on both hosts.
 
-## Configuration
+## What it provisions
 
-### 1. Inventory
-Edit `inventory/inventory.ini`. Define your server and client nodes under their respective groups.
+* **Server**: Xray inbound on `443/tcp` using `vless` + `reality`
+* **Client**: local SOCKS inbound on `127.0.0.1:10808`
+* **Transport**: TCP + REALITY
+* **Auth**: VLESS UUID + X25519 key material + shortId
+
+## Requirements
+
+* Ansible 2.14+
+* SSH access to both hosts
+* Root or sudo access on the managed nodes
+* Debian/Ubuntu-like distro on both server and client
+* Python 3 on the remote hosts
+
+# Quick Start
+
+## 1. Prepare the hosts
+
+You need:
+
+* One Linux VPS/server
+* One or more Linux clients
+* SSH access to all hosts
+* A working SSH keypair on your local machine
+
+Example:
+
+```bash
+~/.ssh/id_ed25519
+~/.ssh/id_ed25519.pub
+```
+
+Copy your public key to every target host:
+
+```bash
+ssh-copy-id admin@YOUR_VPS_IP
+ssh-copy-id root@YOUR_CLIENT_IP
+```
+
+Verify SSH access works without a password:
+
+```bash
+ssh admin@YOUR_VPS_IP
+ssh root@YOUR_CLIENT_IP
+```
+
+---
+
+# 2. Clone the repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/ansible-xray.git
+cd ansible-xray
+```
+
+---
+
+# 3. Install required Ansible collections
+
+The playbook uses the `community.general` collection for UFW management.
+
+Install it:
+
+```bash
+ansible-galaxy collection install community.general
+```
+
+---
+
+# 4. Configure inventory
+
+Edit `inventory.ini`.
+
+Example:
+
 ```ini
-[vps_servers]
-vps_1 ansible_host=<IP> ansible_user=root
+[server]
+vps ansible_host=203.0.113.10 ansible_user=admin
 
-[xray_clients]
-client_1 ansible_host=<IP> ansible_user=root
+[clients]
+client_1 ansible_host=192.168.1.50 ansible_user=root
 
 [all:vars]
 ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file=~/.ssh/id_ed25519
 ```
 
-### 2. Variables and Secrets
-Create and encrypt group variables using Ansible Vault. Do not commit plaintext secrets.
+Notes:
 
-```bash
-ansible-vault create group_vars/all.yml
-ansible-vault create group_vars/vps_servers.yml
-ansible-vault create group_vars/xray_clients.yml
-```
+* `server` must contain exactly one host
+* `clients` may contain multiple hosts
+* `ansible_user` must have sudo privileges
 
-**Required variables:**
+---
 
-`group_vars/all.yml`
+# 5. Adjust server settings
+
+Open `playbook.yml` and review:
+
 ```yaml
-client_id: "<UUID>"
-short_id: "<hex-string>"
-domain: "<reality-domain>"
-vps_ip: "<server-ip>"
-```
-
-`group_vars/vps_servers.yml`
-```yaml
-xray_mode: server
-ssh_port: 22
+server_name: "microsoft.com"
 xray_port: 443
-private_key: "<reality-private-key>"
 ```
 
-`group_vars/xray_clients.yml`
-```yaml
-xray_mode: client
-inbound_port: 10808
-outbound_port: 443
-public_key: "<reality-public-key>"
-```
+Choose a realistic SNI target for `server_name`.
 
-More info about these options (RU/CN): https://github.com/XTLS/Xray-core/discussions/3518  
+---
 
-## Execution
+# 6. Run the playbook
 
-Run the main playbook. Provide vault and SSH credentials as required by your environment.
+Execute:
 
 ```bash
-ansible-playbook -i inventory/inventory.ini xray_setup.yml --ask-vault-pass -k
+ansible-playbook -i inventory.ini playbook.yml
 ```
 
-### Execution Caveats
-* **SSH Port Rotation:** If `ssh_port` in `vps_servers.yml` differs from the default SSH port, the playbook will reconfigure `sshd` and reset the connection. For subsequent runs, you must update `inventory.ini` with `ansible_port=<new_port>` or pass it via CLI (`-e ansible_port=<new_port>`).
+The playbook will:
 
-## Architecture Notes
-* **Role Separation:** `vps-prep` handles OS-level hardening and firewall rules. `xray` handles binary deployment, systemd unit management, and Jinja2 templating.
-* **Configuration Templating:** The `xray` role dynamically selects the configuration template based on the `xray_mode` variable (`config_server.json.j2` or `config_client.json.j2`).
-* **Idempotency:** Xray binary download and extraction are skipped if the target version matches the currently installed version.
-* **Customization:** To support ARM/MIPS architectures or alter default paths, modify `roles/xray/defaults/main.yml`.
+* install Xray
+* generate REALITY keys
+* generate UUID and shortId
+* deploy configs
+* enable/start the Xray service
+* configure UFW on the server
+
+---
+
+# 7. Verify Xray service
+
+On the server:
+
+```bash
+systemctl status xray
+```
+
+On the client:
+
+```bash
+systemctl status xray
+```
+
+Check logs:
+
+```bash
+journalctl -u xray -f
+```
+
+---
+
+# 8. Use the SOCKS proxy
+
+The client exposes a SOCKS5 proxy on:
+
+```text
+127.0.0.1:10808
+```
+
+Example with curl:
+
+```bash
+curl --proxy socks5h://127.0.0.1:10808 https://ifconfig.me
+```
+
+---
+
+# 9. Re-running the playbook
+
+You can safely re-run:
+
+```bash
+ansible-playbook -i inventory.ini playbook.yml
+```
+
+However, the current implementation regenerates identity material on each run, which changes the config and restarts Xray.
+
+Persisting generated keys/UUIDs is recommended for production deployments.
+
+
