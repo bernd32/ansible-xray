@@ -1,0 +1,34 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": {{ xray_port }},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          { "id": "{{ client_id }}", "flow": "xtls-rprx-vision" }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "dest": "{{ server_name }}:{{ xray_port }}",
+          "serverNames": [ "{{ server_name }}", "www.{{ server_name }}" ],
+          "privateKey": "{{ private_key }}",
+          "shortIds": [ "{{ short_id }}" ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [ "http", "tls", "quic" ]
+      }
+    }
+  ],
+  "outbounds": [
+    { "protocol": "freedom", "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block" }
+  ]
+}

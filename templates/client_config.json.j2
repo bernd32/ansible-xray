@@ -1,0 +1,43 @@
+{
+  "log": { "loglevel": "warning" },
+  "routing": {
+    "rules": [
+      { "ip": ["geoip:private"], "outboundTag": "direct" }
+    ]
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": {{ inbound_port }},
+      "protocol": "socks"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [{
+          "address": "{{ vps_ip }}",
+          "port": {{ outbound_port }},
+          "users": [{
+            "id": "{{ client_id }}",
+            "encryption": "none",
+            "flow": "xtls-rprx-vision"
+          }]
+        }]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "fingerprint": "chrome",
+          "serverName": "{{ server_name }}",
+          "publicKey": "{{ public_key }}",
+          "shortId": "{{ short_id }}"
+        }
+      },
+      "tag": "proxy"
+    },
+    { "protocol": "freedom", "tag": "direct" }
+  ]
+}

@@ -1,0 +1,193 @@
+---
+# ---------- Play 1: Server ----------
+- name: Provision Xray server
+  hosts: server
+  become: true
+  vars:
+    xray_port: 443
+    server_name: "microsoft.com"   # pick a credible SNI target
+    inbound_port: 10808                # used by client
+    outbound_port: 443
+
+  handlers:
+    - name: Restart xray
+      ansible.builtin.systemd:
+        name: xray
+        state: restarted
+        daemon_reload: true
+        enabled: true
+
+  tasks:
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name: [wget, curl, vim, unzip, ufw] # Removed xxd, using openssl instead
+        state: present
+        update_cache: true
+
+    - name: Detect existing xray binary
+      ansible.builtin.command: which xray
+      register: xray_bin
+      changed_when: false
+      failed_when: false
+
+    - name: Download xray install script
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh
+        dest: /tmp/xray-install.sh
+        mode: "0755"
+      when: xray_bin.rc != 0
+
+    - name: Install xray (non-interactive)
+      ansible.builtin.command: bash /tmp/xray-install.sh install
+      when: xray_bin.rc != 0
+
+    # --- Generate identity material once ---
+    - name: Generate x25519 keypair
+      ansible.builtin.command: xray x25519
+      register: kp
+      changed_when: false
+
+    - name: Show x25519 output
+      ansible.builtin.debug:
+        var: kp.stdout
+  
+    - name: Parse keys safely
+      ansible.builtin.set_fact:
+        private_key: "{{ kp.stdout | ansible.builtin.regex_search('(?m)^PrivateKey:\\s*(\\S+)', '\\1') | first }}"
+        public_key: "{{ kp.stdout | ansible.builtin.regex_search('(?m)^Password \\(PublicKey\\):\\s*(\\S+)', '\\1') | first }}"
+
+    - name: Assert keys were parsed
+      ansible.builtin.assert:
+        that:
+          - private_key | length > 0
+          - public_key | length > 0
+
+    - name: Generate client UUID
+      ansible.builtin.command: xray uuid
+      register: uuid_out
+      changed_when: false
+
+    - name: Set client_id
+      ansible.builtin.set_fact:
+        client_id: "{{ uuid_out.stdout }}"
+
+    - name: Generate shortId (8 hex chars) using openssl
+      ansible.builtin.command: openssl rand -hex 8
+      register: sid
+      changed_when: false
+
+    - name: Set short_id
+      ansible.builtin.set_fact:
+        short_id: "{{ sid.stdout }}"
+
+    # --- FIX: Promote server_name to host fact so it survives into Play 2 ---
+    - name: Promote server_name to host fact
+      ansible.builtin.set_fact:
+        server_name: "{{ server_name }}"
+
+    # --- Deploy config ---
+    - name: Deploy server config
+      ansible.builtin.template:
+        src: templates/server_config.json.j2
+        dest: /usr/local/etc/xray/config.json
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart xray
+
+    # --- FIX: Ensure service is running even if config didn't change ---
+    - name: Ensure xray is started and enabled
+      ansible.builtin.systemd:
+        name: xray
+        state: started
+        enabled: true
+
+    # --- Firewall ---
+    - name: UFW - allow SSH
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+
+    - name: UFW - allow xray port
+      community.general.ufw:
+        rule: allow
+        port: "{{ xray_port | string }}"
+        proto: tcp
+
+    - name: UFW - enable
+      community.general.ufw:
+        state: enabled
+        policy: deny
+
+    - name: Print connection details
+      ansible.builtin.debug:
+        msg:
+          - "VPS IP:       {{ ansible_host }}"
+          - "Port:         {{ xray_port }}"
+          - "UUID:         {{ client_id }}"
+          - "Public key:   {{ public_key }}"
+          - "Short ID:     {{ short_id }}"
+          - "SNI:          {{ server_name }}"
+
+
+# ---------- Play 2: Client ----------
+- name: Provision Xray client
+  hosts: clients
+  become: true
+  vars:
+    inbound_port: 10808
+    outbound_port: 443
+    vps_ip:       "{{ hostvars[groups['server'][0]]['ansible_host'] }}"
+    client_id:    "{{ hostvars[groups['server'][0]]['client_id'] }}"
+    public_key:   "{{ hostvars[groups['server'][0]]['public_key'] }}"
+    short_id:     "{{ hostvars[groups['server'][0]]['short_id'] }}"
+    server_name:  "{{ hostvars[groups['server'][0]]['server_name'] }}"
+
+  handlers:
+    - name: Restart xray
+      ansible.builtin.systemd:
+        name: xray
+        state: restarted
+        daemon_reload: true
+        enabled: true
+
+  tasks:
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name: [wget, curl, vim, unzip]
+        state: present
+        update_cache: true
+
+    - name: Detect existing xray binary
+      ansible.builtin.command: which xray
+      register: xray_bin
+      changed_when: false
+      failed_when: false
+
+    - name: Download xray install script
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/XTLS/Xray-install/main/install-release.sh
+        dest: /tmp/xray-install.sh
+        mode: "0755"
+      when: xray_bin.rc != 0
+
+    - name: Install xray (non-interactive)
+      ansible.builtin.command: bash /tmp/xray-install.sh install
+      when: xray_bin.rc != 0
+
+    - name: Deploy client config
+      ansible.builtin.template:
+        src: templates/client_config.json.j2
+        dest: /usr/local/etc/xray/config.json
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart xray
+
+    # --- FIX: Ensure service is running even if config didn't change ---
+    - name: Ensure xray is started and enabled
+      ansible.builtin.systemd:
+        name: xray
+        state: started
+        enabled: true
