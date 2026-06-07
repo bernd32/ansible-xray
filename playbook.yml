@@ -21,7 +21,7 @@
   tasks:
     - name: Install prerequisite packages
       ansible.builtin.apt:
-        name: [wget, curl, vim, unzip, ufw]
+        name: [wget, curl, vim, unzip]
         state: present
         update_cache: true
 
@@ -51,12 +51,12 @@
       ansible.builtin.debug:
         var: kp.stdout
   
-    - name: Parse keys safely
+    - name: Parse x25519 keys safely
       ansible.builtin.set_fact:
         private_key: "{{ kp.stdout | ansible.builtin.regex_search('(?m)^PrivateKey:\\s*(\\S+)', '\\1') | first }}"
         public_key: "{{ kp.stdout | ansible.builtin.regex_search('(?m)^Password \\(PublicKey\\):\\s*(\\S+)', '\\1') | first }}"
 
-    - name: Assert keys were parsed
+    - name: Assert x25519 keys were parsed
       ansible.builtin.assert:
         that:
           - private_key | length > 0
@@ -98,24 +98,6 @@
         name: xray
         state: started
         enabled: true
-
-    # --- Firewall ---
-    - name: UFW - allow SSH
-      community.general.ufw:
-        rule: allow
-        port: "22"
-        proto: tcp
-
-    - name: UFW - allow xray port
-      community.general.ufw:
-        rule: allow
-        port: "{{ xray_port | string }}"
-        proto: tcp
-
-    - name: UFW - enable
-      community.general.ufw:
-        state: enabled
-        policy: deny
 
     - name: Print connection details
       ansible.builtin.debug:
