@@ -2,7 +2,7 @@
 
 An Ansible playbook for provisioning a basic [Xray](https://github.com/XTLS/Xray-core) VLESS + REALITY setup on a server and a client(s).
 
-It installs Xray, generates the required identity material, renders JSON configs from Jinja2 templates, opens the firewall on the server, and enables the systemd service on both hosts.
+It installs Xray, generates the required identity material, renders JSON configs from Jinja2 templates, and enables the systemd service on both hosts.
 
 ## What it provisions
 
@@ -157,6 +157,15 @@ Check if proxy is working:
 ```bash
 curl --proxy socks5h://127.0.0.1:10808 https://ifconfig.me
 ```
+
+# 8. Configure the firewall (optional)
+
+Open the TCP 443 port on a server, e.g.: 
+
+```bash
+ ufw allow 443/tcp
+```
+
 
 # Additional information 
 
