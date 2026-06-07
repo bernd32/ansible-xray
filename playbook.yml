@@ -2,6 +2,7 @@
 # ---------- Play 1: Server ----------
 - name: Provision Xray server
   hosts: server
+  tags: [server]
   become: true
   vars:
     xray_port: 443
@@ -130,6 +131,7 @@
 # ---------- Play 2: Client ----------
 - name: Provision Xray client
   hosts: clients
+  tags: [client]
   become: true
   vars:
     inbound_port: 10808

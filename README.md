@@ -123,7 +123,7 @@ ansible-playbook -i inventory.ini playbook.yml
 
 The playbook will:
 
-* install Xray
+* install Xray (on both client and server)
 * generate REALITY keys
 * generate UUID and shortId
 * deploy configs
@@ -152,34 +152,24 @@ Check logs:
 journalctl -u xray -f
 ```
 
----
-
-## 8. Use the SOCKS proxy
-
-The client exposes a SOCKS5 proxy on:
-
-```text
-127.0.0.1:10808
-```
-
-Example with curl:
+Check if proxy is working: 
 
 ```bash
 curl --proxy socks5h://127.0.0.1:10808 https://ifconfig.me
 ```
 
----
+# Additional information 
 
-## 9. Re-running the playbook
+Specify a tag option to limit the configuration to VPS/Server or client part only. 
 
-You can safely re-run:
+To install and configure Xray only on a VPS/server (skip the client part): 
 
 ```bash
-ansible-playbook -i inventory.ini playbook.yml
+ansible-playbook -i inventory.ini playbook.yml --tags server
 ```
 
-However, the current implementation regenerates identity material on each run, which changes the config and restarts Xray.
+To install and configure Xray only on a client (skip the server part): 
 
-Persisting generated keys/UUIDs is recommended for production deployments.
-
-
+```bash
+ansible-playbook -i inventory.ini playbook.yml --tags client
+```
